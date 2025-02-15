@@ -15,6 +15,7 @@ class Config:
     score_mode: str
     solver: str
     cadical_args: list[str]
+    log_file:str
 
 
 def validate_config(args):
@@ -32,6 +33,7 @@ def validate_config(args):
         args.score_mode,
         args.solver.strip(),
         [],
+        args.log
     )
 
     if shutil.which(cfg.solver) is None:

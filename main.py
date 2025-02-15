@@ -1,14 +1,28 @@
 import argparse
 import multiprocessing
 from args import validate_config
+from lit_count import run
+
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--cnf", dest="cnf", required=True)
-    parser.add_argument("--cube-size", dest="cube_size", type=int, required=True)
-    parser.add_argument("--cutoff", dest="cutoff", type=int, required=True)
-    parser.add_argument("--log", dest="log", required=True)
-    parser.add_argument("--icnf", dest="icnf", default=None)
+    parser.add_argument("--cnf", help="cnf file location", dest="cnf", required=True)
+    parser.add_argument(
+        "--cube-size",
+        help="size of cubes to split into",
+        dest="cube_size",
+        type=int,
+        required=True,
+    )
+    parser.add_argument(
+        "--cutoff",
+        help="how many clauses to learn in the DRAT",
+        dest="cutoff",
+        type=int,
+        required=True,
+    )
+    parser.add_argument("--log", help="log file location", dest="log", required=True)
+    parser.add_argument("--icnf", help="icnf file location", dest="icnf", default=None)
     parser.add_argument("--tmp-dir", dest="tmp_dir", default="tmp")
     parser.add_argument(
         "--cube-procs",
@@ -43,6 +57,7 @@ def main():
     )
     args = parser.parse_args()
     cfg = validate_config(args)
+    run(cfg)
 
 
 if __name__ == "__main__":
