@@ -50,7 +50,7 @@ def parse_lrat_line(line):
         lits = []
         clauses = []
         swap = False
-        for i in split:
+        for i in split[1:]:
             i = int(i)
             if i == 0:
                 swap = True
@@ -108,6 +108,13 @@ def collect_data(cfg: Config, cnf_loc):
     clause_occs = Counter()
     clauses = {}
     occurences = {}
+    f = open(cnf_loc, "r")
+    for i, line in enumerate(f.readlines()):
+        if "cnf" in line:
+            continue
+        lits  = list(map(int, line.split(" ")[:-1]))
+        clauses[i+1] = lits
+
     if cfg.solver == "cadical":
         command = [
             cfg.solver,
@@ -132,7 +139,8 @@ def collect_data(cfg: Config, cnf_loc):
                 line_ctr += 1
                 clauses[id] = lits
                 for clause in hint_clauses:  # type: ignore
-                    if clause in clauses:
+                    assert(clause > 0)
+                    if clause in clause_occs:
                         clause_occs[clause] += 1
                     else:
                         clause_occs[clause] = 1
@@ -142,7 +150,7 @@ def collect_data(cfg: Config, cnf_loc):
             if process.poll() is not None:
                 break
         process.wait()
-        for clause_id, _ in clause_occs.most_common(cfg.lrat_top):
+        for (clause_id, _) in clause_occs.most_common(cfg.lrat_top):
             for lit in clauses[clause_id]:
                 add_occ(occurences, lit)
                 add_weighted_occ(occurences, lit, len(clauses[clause_id]))
@@ -155,7 +163,6 @@ def collect_data(cfg: Config, cnf_loc):
 def run(cfg: Config):
     util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
     cubes = find_cube_static(cfg, [])
-    print(cubes)
     if not cfg.cube_only:
         util.executor = ProcessPoolExecutor(max_workers=cfg.solve_procs)
         util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir)
