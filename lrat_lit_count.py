@@ -1,7 +1,7 @@
 import subprocess
-import random
-import signal
 import sys
+from collections import Counter
+import random
 import os
 from concurrent.futures import ProcessPoolExecutor
 
@@ -40,23 +40,35 @@ def add_weighted_occ(occurences, lit, clause_len):
         occurences[key].neg_occs_weighted += 1 / clause_len
 
 
-def parse_drat_line(line):
+def parse_lrat_line(line):
     if "d" in line or "c" in line or "SAT" in line:
-        return None
+        return (None, None, None)
 
     try:
-        lits = list(map(lambda x: int(x), line.strip().split(" ")[:-1]))
+        split = line.split(" ")
+        id = int(split[0])
+        lits = []
+        clauses = []
+        swap = False
+        for i in split:
+            i = int(i)
+            if i == 0:
+                swap = True
+            elif swap == False:
+                lits.append(i)
+            else:
+                clauses.append(i)
+        return (id, lits, clauses)
     except:
-        print(line)
-        exit(1)
-    return lits
+        return (None, None, None)
+
 
 def score(cfg: Config, occs: OccEntry):
     return occs.pos_occs + occs.neg_occs
 
-def find_cube_static(cfg: Config, current_cube):
-    util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
-    to_split = [current_cube]
+
+def find_cube_static(cfg: Config, starting_cube):
+    to_split = [starting_cube]
     result = []
     while to_split != []:
         # sample num_samples from the current layer
@@ -68,18 +80,18 @@ def find_cube_static(cfg: Config, current_cube):
         for sample in samples:
             sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir)
             proc = util.executor.submit(collect_data, cfg, sample_cnf_loc)
-            procs.append((proc, sample, sample_cnf_loc))
+            procs.append((proc, sample_cnf_loc))
 
         combined_dict = {}
-        for (proc, sample, sample_cnf_loc) in procs:
+        for proc, sample_cnf_loc in procs:
             proc_dict = proc.result()
             os.remove(sample_cnf_loc)
-            for (var, occs) in proc_dict.items():
+            for var, occs in proc_dict.items():
                 if var not in combined_dict:
                     combined_dict[var] = score(cfg, occs)
                 else:
                     combined_dict[var] += score(cfg, occs)
-        split_lit = max(combined_dict, key=combined_dict.get) # type: ignore
+        split_lit = max(combined_dict, key=combined_dict.get)  # type: ignore
         new_to_split = []
         for cube in to_split:
             if len(cube) + 1 < cfg.cube_size:
@@ -92,17 +104,19 @@ def find_cube_static(cfg: Config, current_cube):
     return result
 
 
-
 def collect_data(cfg: Config, cnf_loc):
+    clause_occs = Counter()
+    clauses = {}
     occurences = {}
     if cfg.solver == "cadical":
         command = [
             cfg.solver,
             cnf_loc,
             "-q",
+            "--lrat",
             "--binary=false",
             "-",
-        ] + cfg.cadical_args
+        ] + cfg.solver_args
         process = subprocess.Popen(command, stdout=subprocess.PIPE)
 
         if process.stdout is None:
@@ -110,17 +124,28 @@ def collect_data(cfg: Config, cnf_loc):
             exit(1)
 
         line_ctr = 0
-        for line in process.stdout:
+        while True:
+            line = process.stdout.readline()
             line = line.decode("utf-8")
-            line = parse_drat_line(line)
-            if line is not None:
+            id, lits, hint_clauses = parse_lrat_line(line)  # type: ignore
+            if id is not None:
                 line_ctr += 1
-                for lit in line:
-                    add_occ(occurences, lit)
-                    add_weighted_occ(occurences, lit, len(line))
+                clauses[id] = lits
+                for clause in hint_clauses:  # type: ignore
+                    if clause in clauses:
+                        clause_occs[clause] += 1
+                    else:
+                        clause_occs[clause] = 1
             if line_ctr == cfg.cutoff:
                 process.kill()
+                break
+            if process.poll() is not None:
+                break
         process.wait()
+        for clause_id, _ in clause_occs.most_common(cfg.lrat_top):
+            for lit in clauses[clause_id]:
+                add_occ(occurences, lit)
+                add_weighted_occ(occurences, lit, len(clauses[clause_id]))
         return occurences
     else:
         print(f"Unknown solver: {cfg.solver}")
@@ -128,6 +153,9 @@ def collect_data(cfg: Config, cnf_loc):
 
 
 def run(cfg: Config):
+    util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
     cubes = find_cube_static(cfg, [])
     print(cubes)
-    util.run_hypercube(cfg.cnf, cubes,  cfg.log_file, cfg.tmp_dir)
+    if not cfg.cube_only:
+        util.executor = ProcessPoolExecutor(max_workers=cfg.solve_procs)
+        util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir)
