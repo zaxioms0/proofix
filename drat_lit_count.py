@@ -128,7 +128,8 @@ def collect_data(cfg: Config, cnf_loc):
 def run(cfg: Config):
     util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
     cubes = find_cube_static(cfg, [])
-    print(cubes)
+    if cfg.icnf is not None:
+        util.make_icnf(cubes, cfg.icnf)
     if not cfg.cube_only:
         util.executor = ProcessPoolExecutor(max_workers=cfg.solve_procs)
         util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir)

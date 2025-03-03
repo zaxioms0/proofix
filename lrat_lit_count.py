@@ -113,7 +113,7 @@ def collect_data(cfg: Config, cnf_loc):
         if "cnf" in line:
             continue
         lits  = list(map(int, line.split(" ")[:-1]))
-        clauses[i+1] = lits
+        clauses[i] = lits
 
     if cfg.solver == "cadical":
         command = [
