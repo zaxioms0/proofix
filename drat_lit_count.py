@@ -57,6 +57,7 @@ def score(cfg: Config, occs: OccEntry):
 
 def find_cube_static(cfg: Config, starting_cube):
     to_split = [starting_cube]
+    split_lits = set()
     result = []
     while to_split != []:
         # sample num_samples from the current layer
@@ -79,7 +80,10 @@ def find_cube_static(cfg: Config, starting_cube):
                     combined_dict[var] = score(cfg, occs)
                 else:
                     combined_dict[var] += score(cfg, occs)
+        for lit in split_lits:
+            combined_dict.pop(lit, None)
         split_lit = max(combined_dict, key=combined_dict.get)  # type: ignore
+        split_lits.add(split_lit)
         new_to_split = []
         for cube in to_split:
             if len(cube) + 1 < cfg.cube_size:
