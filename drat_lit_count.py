@@ -1,4 +1,5 @@
 import subprocess
+import time
 import random
 import os
 from concurrent.futures import ProcessPoolExecutor
@@ -127,7 +128,10 @@ def collect_data(cfg: Config, cnf_loc):
 
 def run(cfg: Config):
     util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
+    cube_start = time.time()
     cubes = find_cube_static(cfg, [])
+    with open(cfg.log_file, "a") as f:
+        f.write("wall clock cube time: {}".format(int(time.time() - cube_start)))
     if cfg.icnf is not None:
         util.make_icnf(cubes, cfg.icnf)
     if not cfg.cube_only:
