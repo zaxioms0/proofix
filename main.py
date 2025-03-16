@@ -3,6 +3,7 @@ import multiprocessing
 from args import validate_config
 import drat_lit_count
 import lrat_lit_count
+import random
 
 
 def main():
@@ -87,12 +88,15 @@ def main():
         type=str,
         default="unweighted sum",
     )
+    parser.add_argument("--seed", dest="seed", default=None, type=int)
     parser.add_argument("--lrat-top", dest="lrat_top", type=int, default=1000)
     parser.add_argument("--lrat", action=argparse.BooleanOptionalAction,
         default=False)
 
     args = parser.parse_args()
     cfg = validate_config(args)
+    if args.seed is not None:
+        random.seed(args.seed)
     if cfg.lrat:
         lrat_lit_count.run(cfg)
     else:
