@@ -67,7 +67,9 @@ def find_cube_static(cfg: Config, starting_cube):
             samples = random.sample(to_split, cfg.num_samples)
         procs = []
         for sample in samples:
-            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir)
+            base = os.path.basename(cfg.cnf)
+            tag = "_".join(list(map(str, sample))) + base
+            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir, tag=tag)
             proc = util.executor.submit(collect_data, cfg, sample_cnf_loc)
             procs.append((proc, sample_cnf_loc))
 
