@@ -60,6 +60,13 @@ def main():
     # parser.add_argument("--lrat-top", dest="lrat_top", type=int, default=1000)
     # parser.add_argument("--lrat", action=argparse.BooleanOptionalAction,
     #    default=False)
+    parser.add_argument(
+        "--shuffle",
+        dest="shuffle",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Whether to shuffle the order of the generate cubes",
+    )
 
     args = parser.parse_args()
     cfg = validate_config(args)

@@ -11,7 +11,7 @@ class Config:
     cutoff: int
     num_samples: int
     icnf: str | None
-    shuffle: bool
+    huffle: bool
     cube_procs: int
     solve_procs: int
     tmp_dir: str
@@ -49,6 +49,12 @@ def validate_config(args):
     #     print(f"Solver '{cfg.solver}' cannot be found on your path")
     #     exit(1)
     #
+
+    if args.icnf == None and not args.conquer:
+        print("Currently, the tool is configured to neither write the icnf file, nor solve the cubes.")
+        print("This will do a bunch of computation for nothing, and you will be a bit sad I think.")
+        print("Please provide either `--conquer` or `--icnf <icnf>`")
+        exit(1)
     if args.icnf != None:
         cfg.icnf = args.icnf
     return cfg
