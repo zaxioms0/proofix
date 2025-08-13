@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import time
 import os
 import subprocess
 import random
@@ -14,6 +15,7 @@ class CadicalResult:
     time: float
     learned: int
     props: int
+    sat: bool
 
 
 @dataclass
@@ -65,8 +67,11 @@ def cadical_parse_results(cadical_output: str):
     time_loc = time_str.find("total process time since initialization")
     time_str = time_str[time_loc:]
     time = float(time_str.split(":")[1].split("seconds")[0].strip())
+    sat = True
+    if "UNSATISFIABLE" in cadical_output:
+        sat = False
 
-    return CadicalResult(time, learned, props)
+    return CadicalResult(time, learned, props, sat)
 
 
 def cnf_parse_header(cnf_string: str):
@@ -77,7 +82,7 @@ def cnf_parse_header(cnf_string: str):
 def add_cube_to_cnf(cnf_loc: str, cube: list[int], tmp_dir, tag=None):
     cnf_string = open(cnf_loc, "r").read()
     if tag == None:
-        tag = "".join(random.choices(string.ascii_letters, k=20))
+        tag = str(time.time())
     else:
         tag = str(tag)
 
@@ -146,8 +151,8 @@ def run_hypercube(cnf_loc, hc, log_file_loc, tmp="tmp"):
 
         log_file.write(
             ",".join(list(map(str, cube)))
-            + " time: {}, learned: {}, props: {}\n".format(
-                cadical_result.time, cadical_result.learned, cadical_result.props
+            + " time: {}, learned: {}, props: {}, sat: {}\n".format(
+                cadical_result.time, cadical_result.learned, cadical_result.props, cadical_result.sat
             )
         )
         log_file.flush()

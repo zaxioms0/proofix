@@ -2,7 +2,7 @@ import subprocess
 import time
 import random
 import os
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
 from args import Config
 from dataclasses import dataclass
@@ -100,46 +100,44 @@ def find_cube_static(cfg: Config, starting_cube):
 
 def collect_data(cfg: Config, cnf_loc):
     occurences = {}
-    if cfg.solver == "cadical":
-        command = [
-            cfg.solver,
-            cnf_loc,
-            "-q",
-            "--binary=false",
-            "-",
-        ] + cfg.solver_args
-        process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    command = [
+        "cadical",
+        cnf_loc,
+        "-q",
+        "--binary=false",
+        "-",
+    ] 
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
 
-        if process.stdout is None:
-            print("Failed to spawn command properly")
-            exit(1)
-
-        line_ctr = 0
-        for line in process.stdout:
-            line = line.decode("utf-8")
-            line = parse_drat_line(line)
-            if line is not None:
-                line_ctr += 1
-                for lit in line:
-                    add_occ(occurences, lit)
-                    add_weighted_occ(occurences, lit, len(line))
-            if line_ctr == cfg.cutoff:
-                process.kill()
-        process.wait()
-        return occurences
-    else:
-        print(f"Unknown solver: {cfg.solver}")
+    if process.stdout is None:
+        print("Failed to spawn command properly")
         exit(1)
+
+    line_ctr = 0
+    for line in process.stdout:
+        line = line.decode("utf-8")
+        line = parse_drat_line(line)
+        if line is not None:
+            line_ctr += 1
+            for lit in line:
+                add_occ(occurences, lit)
+                add_weighted_occ(occurences, lit, len(line))
+        if line_ctr == cfg.cutoff:
+            process.kill()
+    process.wait()
+    return occurences
 
 
 def run(cfg: Config):
-    util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
+    util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
     cubes = find_cube_static(cfg, [])
+    if cfg.shuffle:
+        random.shuffle(cubes)
     with open(cfg.log_file, "a") as f:
         f.write("wall clock cube time: {}\n".format(int(time.time() - cube_start)))
     if cfg.icnf is not None:
         util.make_icnf(cubes, cfg.icnf)
-    if not cfg.cube_only:
-        util.executor = ProcessPoolExecutor(max_workers=cfg.solve_procs)
+    if cfg.conquer:
+        util.executor = ThreadPoolExecutor(max_workers=cfg.solve_procs)
         util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir)
