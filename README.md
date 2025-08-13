@@ -2,7 +2,8 @@
 A tool for partitioning CNF formulas for use via cube and conquer
 
 ## Usage
-The basic usage is `python3.12 --cnf <cnf> --cube-size <n> --cutoff <c> --log <log>`
+The basic usage is `python --cnf <cnf> --cube-size <n> --cutoff <c> --log <log>`
+`python3.12` or greater is required. 
 The following are the list of availible command line options:
 ### Required
 - `--cnf`: The location of the CNF file
