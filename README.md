@@ -22,6 +22,8 @@ The following are the list of availible command line options:
 - `--seed`: Whether to seed the randomness in the sampler
 
 This is research quality software. If you have issues using it, please feel free to email me!
+Also, if you have any feature requests or ideas, please reach out or, if you feel inclined, submit a PR!
+
 
 ## Paper
 The Proofix tool is described in detail in the paper [Problem Partitioning via Proof Prefixes](https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SAT.2025.3).
