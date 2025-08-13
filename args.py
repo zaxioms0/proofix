@@ -11,7 +11,7 @@ class Config:
     cutoff: int
     num_samples: int
     icnf: str | None
-    huffle: bool
+    shuffle: bool
     cube_procs: int
     solve_procs: int
     tmp_dir: str
