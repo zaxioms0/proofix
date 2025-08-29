@@ -67,6 +67,12 @@ def main():
         default=True,
         help="Whether to shuffle the order of the generate cubes",
     )
+    parser.add_argument(
+        "--dump-vars",
+        dest="dump_vars",
+        action=argparse.BooleanOptionalAction,
+        default=False
+    )
 
     args = parser.parse_args()
     cfg = validate_config(args)
