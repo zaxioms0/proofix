@@ -74,7 +74,7 @@ def main():
         default=False
     )
 
-    args = parser.parse_args()
+    args, _ = parser.parse_known_args()
     cfg = validate_config(args)
     if args.seed is not None:
         random.seed(args.seed)
