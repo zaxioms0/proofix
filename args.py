@@ -22,7 +22,7 @@ class Config:
     log_file: str
     # lrat_top: int
     # lrat: bool
-    dump_args: bool
+    dump_vars: bool
 
 
 def validate_config(args):
@@ -43,7 +43,7 @@ def validate_config(args):
         args.log,
         # args.lrat_top,
         # args.lrat
-        args.dump_args,
+        args.dump_vars,
     )
 
     os.makedirs(cfg.tmp_dir, exist_ok=True)

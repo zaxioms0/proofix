@@ -132,7 +132,7 @@ def run(cfg: Config):
     util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
     cubes = find_cube_static(cfg, [])
-    if cfg.dump_args: 
+    if cfg.dump_vars: 
         print("vars:", map(abs, cubes[0]))
     if cfg.shuffle:
         random.shuffle(cubes)
