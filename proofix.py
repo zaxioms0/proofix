@@ -8,7 +8,7 @@ import random
 
 
 def main():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--cnf", help="cnf file location", dest="cnf", required=True)
     parser.add_argument(
         "--cube-size",
