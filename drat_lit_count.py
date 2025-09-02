@@ -55,8 +55,11 @@ def score(cfg: Config, occs: OccEntry):
     return occs.pos_occs + occs.neg_occs
 
 
-def find_cube_static(cfg: Config, starting_cube):
-    to_split = [starting_cube]
+def find_cube_static(cfg: Config, start):
+    if all(isinstance(x, list) for x in start) and start != []:
+        to_split = start
+    else:
+        to_split = [start]
     split_lits = set()
     result = []
     while to_split != []:
@@ -68,23 +71,19 @@ def find_cube_static(cfg: Config, starting_cube):
         procs = []
         for sample in samples:
             base = os.path.basename(cfg.cnf)
-            tag = "_".join(list(map(str, sample))) + base
-            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir, tag=tag)
+            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir)
             proc = util.executor.submit(collect_data, cfg, sample_cnf_loc)
             procs.append((proc, sample_cnf_loc))
 
-        combined_dict = {}
+        var_score_dict = {}
         for proc, sample_cnf_loc in procs:
-            proc_dict = proc.result()
+            var_occ_dict = proc.result()
             os.remove(sample_cnf_loc)
-            for var, occs in proc_dict.items():
-                if var not in combined_dict:
-                    combined_dict[var] = score(cfg, occs)
-                else:
-                    combined_dict[var] += score(cfg, occs)
+            for var, occs in var_occ_dict.items():
+                var_score_dict[var] = score(cfg, occs)
         for lit in split_lits:
-            combined_dict.pop(lit, None)
-        split_lit = max(combined_dict, key=combined_dict.get)  # type: ignore
+            var_score_dict.pop(lit, None)
+        split_lit = max(var_score_dict, key=var_score_dict.get)  # type: ignore
         split_lits.add(split_lit)
         new_to_split = []
         for cube in to_split:
@@ -132,14 +131,20 @@ def run(cfg: Config):
     util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
     cubes = find_cube_static(cfg, [])
-    if cfg.dump_vars: 
-        print("vars:", map(abs, cubes[0]))
     if cfg.shuffle:
         random.shuffle(cubes)
     with open(cfg.log_file, "a") as f:
         f.write("wall clock cube time: {}\n".format(int(time.time() - cube_start)))
     if cfg.icnf is not None:
-        util.make_icnf(cubes, cfg.icnf)
-    if cfg.conquer:
+            util.make_icnf(cubes, cfg.icnf, cfg.cnf if cfg.write_cnf else None)
+    if cfg.conquer or cfg.iterate_time_cutoff != None:
         util.executor = ThreadPoolExecutor(max_workers=cfg.solve_procs)
-        util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir)
+        timeout_cubes = util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff)
+        while len(timeout_cubes) != 0:
+            cfg.cube_size += cfg.iterate_cube_depth
+            print(timeout_cubes)
+            new_cubes = find_cube_static(cfg, timeout_cubes)
+            if cfg.shuffle:
+                random.shuffle(new_cubes)
+            print(new_cubes)
+            timeout_cubes = util.run_hypercube(cfg.cnf, new_cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff)
