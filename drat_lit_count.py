@@ -105,7 +105,7 @@ def collect_data(cfg: Config, cnf_loc):
         "-q",
         "--binary=false",
         "-",
-    ] 
+    ]
     process = subprocess.Popen(command, stdout=subprocess.PIPE)
 
     if process.stdout is None:
@@ -136,15 +136,22 @@ def run(cfg: Config):
     with open(cfg.log_file, "a") as f:
         f.write("wall clock cube time: {}\n".format(int(time.time() - cube_start)))
     if cfg.icnf is not None:
-            util.make_icnf(cubes, cfg.icnf, cfg.cnf if cfg.write_cnf else None)
-    if cfg.conquer or cfg.iterate_time_cutoff != None:
+        util.make_icnf(cubes, cfg.icnf, cfg.cnf if cfg.write_cnf else None)
+    if cfg.conquer:
         util.executor = ThreadPoolExecutor(max_workers=cfg.solve_procs)
-        timeout_cubes = util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff)
-        while len(timeout_cubes) != 0:
-            cfg.cube_size += cfg.iterate_cube_depth
-            print(timeout_cubes)
-            new_cubes = find_cube_static(cfg, timeout_cubes)
-            if cfg.shuffle:
-                random.shuffle(new_cubes)
-            print(new_cubes)
-            timeout_cubes = util.run_hypercube(cfg.cnf, new_cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff)
+        # iterate_time_cutoff is either int or none, so if its not set this will
+        # behave as normal
+        timeout_cubes = util.run_hypercube(
+            cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff
+        )
+        if cfg.iterate_time_cutoff:
+            while len(timeout_cubes) != 0:
+                cfg.cube_size += cfg.iterate_cube_depth
+                print(timeout_cubes)
+                new_cubes = find_cube_static(cfg, timeout_cubes)
+                if cfg.shuffle:
+                    random.shuffle(new_cubes)
+                print(new_cubes)
+                timeout_cubes = util.run_hypercube(
+                    cfg.cnf, new_cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff
+                )

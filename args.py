@@ -11,7 +11,7 @@ class Config:
     cutoff: int
     num_samples: int
     icnf: str | None
-    write_cnf: bool
+    include_cnf: bool
     shuffle: bool
     cube_procs: int
     solve_procs: int
@@ -49,8 +49,8 @@ def collect_args():
     parser.add_argument("--icnf", help="icnf file location", dest="icnf", default=None)
     parser.add_argument(
         "--include-cnf",
-        help="whether to write cnf with the cubes",
-        dest="write_cnf",
+        help="whether to write cnf with the cubes. This makes the file immediately suitable for incremental SAT",
+        dest="include_cnf",
         action=argparse.BooleanOptionalAction,
         default=False,
     )
@@ -109,7 +109,7 @@ def validate_config(args):
         args.cutoff,
         args.num_samples,
         args.icnf,
-        args.write_cnf,
+        args.include_cnf,
         args.shuffle,
         args.cube_procs,
         args.solve_procs,
