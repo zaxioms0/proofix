@@ -17,7 +17,7 @@ class Config:
     solve_procs: int
     tmp_dir: str
     conquer: bool
-    # score_mode: str
+    score_mode: str
     # solver: str
     # solver_args: list[str]
     log_file: str
@@ -28,7 +28,7 @@ class Config:
 
 
 def collect_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--cnf", help="cnf file location", dest="cnf", required=True)
     parser.add_argument(
         "--cube-size",
@@ -76,13 +76,16 @@ def collect_args():
         action=argparse.BooleanOptionalAction,
         default=False,
     )
-    # parser.add_argument(
-    #     "--score-mode",
-    #     help="TODO: unimplemented",
-    #     dest="score_mode",
-    #     type=str,
-    #     default="unweighted sum",
-    # )
+    parser.add_argument(
+        "--score-mode",
+        help="""How you want the score to be computed. Options are:
+    sum: sum of occurences
+    weighted-sum: sum of occurences where each occurence is 1/clause len
+        """,
+        dest="score_mode",
+        type=str,
+        default="sum",
+    )
     parser.add_argument("--seed", dest="seed", default=None, type=int)
     # parser.add_argument("--lrat-top", dest="lrat_top", type=int, default=1000)
     # parser.add_argument("--lrat", action=argparse.BooleanOptionalAction,
@@ -95,8 +98,20 @@ def collect_args():
         help="Whether to shuffle the order of the generate cubes",
     )
 
-    parser.add_argument("--iterate-time-cutoff", dest="iterate_time_cutoff", required = False, default=None, type=int)
-    parser.add_argument("--iterate-cube-depth", dest="iterate_cube_depth", required = False, default=4, type=int)
+    parser.add_argument(
+        "--iterate-time-cutoff",
+        dest="iterate_time_cutoff",
+        required=False,
+        default=None,
+        type=int,
+    )
+    parser.add_argument(
+        "--iterate-cube-depth",
+        dest="iterate_cube_depth",
+        required=False,
+        default=4,
+        type=int,
+    )
 
     args, _ = parser.parse_known_args()
     return args
@@ -115,14 +130,14 @@ def validate_config(args):
         args.solve_procs,
         args.tmp_dir.strip(),
         args.conquer,
-        # args.score_mode,
+        args.score_mode,
         # args.solver.strip(),
         # solver_args,
         args.log,
         # args.lrat_top,
         # args.lrat
         args.iterate_time_cutoff,
-        args.iterate_cube_depth
+        args.iterate_cube_depth,
     )
 
     os.makedirs(cfg.tmp_dir, exist_ok=True)
@@ -131,6 +146,13 @@ def validate_config(args):
     #     exit(1)
     #
 
+    if args.score_mode not in {"sum", "weighted-sum"}:
+        print("Please select a valid score mode. Current options are:")
+        print("sum: the sum of occurences")
+        print(
+            "weighted-sum: the sum of occurences where each occurence is weighted 1/clause length"
+        )
+
     if not (args.icnf or args.conquer):
         print(
             "Currently, the tool is configured to neither write the icnf file, cube file, nor solve the cubes."
@@ -138,8 +160,6 @@ def validate_config(args):
         print(
             "This will do a bunch of computation for nothing, and you will be a bit sad I think."
         )
-        print(
-            "Please provide either `--conquer`, `--icnf <icnf>`"
-        )
+        print("Please provide either `--conquer`, `--icnf <icnf>`")
         exit(1)
     return cfg

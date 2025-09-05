@@ -2,3 +2,5 @@ test/
 venv/
 __pycache__/
 tmp/
+*.icnf
+*.cnf

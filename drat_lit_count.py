@@ -2,7 +2,7 @@ import subprocess
 import time
 import random
 import os
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 
 from args import Config
 from dataclasses import dataclass
@@ -34,9 +34,9 @@ def add_weighted_occ(occurences, lit, clause_len):
         occurences[key] = OccEntry()
 
     if lit > 0:
-        occurences[key].pos_occs_weighted += 1 / clause_len
+        occurences[key].pos_occs_weighted += 1 / (clause_len ** (3/2))
     else:
-        occurences[key].neg_occs_weighted += 1 / clause_len
+        occurences[key].neg_occs_weighted += 1 / (clause_len ** (3/2))
 
 
 def parse_drat_line(line):
@@ -52,7 +52,14 @@ def parse_drat_line(line):
 
 
 def score(cfg: Config, occs: OccEntry):
-    return occs.pos_occs + occs.neg_occs
+    match cfg.score_mode:
+        case "sum":
+            return occs.pos_occs + occs.neg_occs
+        case "weighted-sum":
+            return occs.pos_occs_weighted + occs.neg_occs_weighted
+        case _:
+            print("Unreachable")
+            exit(1)
 
 
 def find_cube_static(cfg: Config, start):
@@ -68,21 +75,47 @@ def find_cube_static(cfg: Config, start):
             samples = to_split
         else:
             samples = random.sample(to_split, cfg.num_samples)
-        procs = []
-        for sample in samples:
-            base = os.path.basename(cfg.cnf)
-            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir)
-            proc = util.executor.submit(collect_data, cfg, sample_cnf_loc)
-            procs.append((proc, sample_cnf_loc))
 
+        # initialize a bunch of futures
+        max_samples = 2 * cfg.num_samples
+        cur_samples = 0
+        sample_futs = []
+        for sample in samples:
+            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir)
+            sample_fut = util.executor.submit(collect_data, cfg, sample_cnf_loc)
+            sample_futs.append(sample_fut)
+            cur_samples += 1
+
+        # compute futures and score them
+        # if a sample is bad, redo it
         var_score_dict = {}
-        for proc, sample_cnf_loc in procs:
-            var_occ_dict = proc.result()
-            os.remove(sample_cnf_loc)
-            for var, occs in var_occ_dict.items():
-                var_score_dict[var] = score(cfg, occs)
+        while sample_futs:
+            done, _ = wait(sample_futs, return_when=FIRST_COMPLETED)
+            for sample in done:
+                var_occ_dict, cnf_loc = sample.result()
+                sample_futs.remove(sample)
+                os.remove(cnf_loc)
+                # if sample is bad and we still have sampling budget
+                if var_occ_dict is None and cur_samples < max_samples:
+                    print("resampling")
+                    new_sample = random.choice(to_split)
+                    new_sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, new_sample, cfg.tmp_dir)
+                    sample_futs.append(util.executor.submit(collect_data, cfg, new_sample_cnf_loc))
+                    cur_samples += 1
+                # good sample
+                elif var_occ_dict is None and cur_samples >= max_samples:
+                    print("hit sampling budget, not resampling")
+                else:
+                    print("good")
+                    for var, occs in var_occ_dict.items():
+                        if var in var_score_dict.keys():
+                            var_score_dict[var] += score(cfg, occs)
+                        else:
+                            var_score_dict[var] = score(cfg, occs)
+
         for lit in split_lits:
             var_score_dict.pop(lit, None)
+        print(sorted(var_score_dict.items(), key=lambda item: item[1], reverse=True)[:10])
         split_lit = max(var_score_dict, key=var_score_dict.get)  # type: ignore
         split_lits.add(split_lit)
         new_to_split = []
@@ -98,7 +131,7 @@ def find_cube_static(cfg: Config, start):
 
 
 def collect_data(cfg: Config, cnf_loc):
-    occurences = {}
+    occurences: dict[int, OccEntry] = {}
     command = [
         "cadical",
         cnf_loc,
@@ -106,6 +139,7 @@ def collect_data(cfg: Config, cnf_loc):
         "--binary=false",
         "-",
     ]
+    t = time.time()
     process = subprocess.Popen(command, stdout=subprocess.PIPE)
 
     if process.stdout is None:
@@ -124,7 +158,10 @@ def collect_data(cfg: Config, cnf_loc):
         if line_ctr == cfg.cutoff:
             process.kill()
     process.wait()
-    return occurences
+    if time.time() - t < 0.5:
+        return None, cnf_loc
+
+    return occurences, cnf_loc
 
 
 def run(cfg: Config):
@@ -136,22 +173,22 @@ def run(cfg: Config):
     with open(cfg.log_file, "a") as f:
         f.write("wall clock cube time: {}\n".format(int(time.time() - cube_start)))
     if cfg.icnf is not None:
-        util.make_icnf(cubes, cfg.icnf, cfg.cnf if cfg.write_cnf else None)
+        util.make_icnf(cubes, cfg.icnf, cfg.cnf if cfg.include_cnf else None)
     if cfg.conquer:
         util.executor = ThreadPoolExecutor(max_workers=cfg.solve_procs)
         # iterate_time_cutoff is either int or none, so if its not set this will
         # behave as normal
-        timeout_cubes = util.run_hypercube(
-            cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff
-        )
+        timeout_cubes = util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff)
         if cfg.iterate_time_cutoff:
             while len(timeout_cubes) != 0:
                 cfg.cube_size += cfg.iterate_cube_depth
-                print(timeout_cubes)
                 new_cubes = find_cube_static(cfg, timeout_cubes)
                 if cfg.shuffle:
                     random.shuffle(new_cubes)
-                print(new_cubes)
                 timeout_cubes = util.run_hypercube(
-                    cfg.cnf, new_cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff
+                    cfg.cnf,
+                    new_cubes,
+                    cfg.log_file,
+                    cfg.tmp_dir,
+                    cfg.iterate_time_cutoff,
                 )
