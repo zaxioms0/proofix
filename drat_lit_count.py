@@ -63,6 +63,7 @@ def score(cfg: Config, occs: OccEntry):
 
 
 def find_cube_static(cfg: Config, start):
+    # list of cubes vs single cube
     if all(isinstance(x, list) for x in start) and start != []:
         to_split = start
     else:

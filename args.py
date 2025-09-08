@@ -22,7 +22,7 @@ class Config:
     # solver_args: list[str]
     log_file: str
     # lrat_top: int
-    # lrat: bool
+    lrat: bool
     iterate_time_cutoff: int | None
     iterate_cube_depth: int
 
@@ -88,8 +88,7 @@ def collect_args():
     )
     parser.add_argument("--seed", dest="seed", default=None, type=int)
     # parser.add_argument("--lrat-top", dest="lrat_top", type=int, default=1000)
-    # parser.add_argument("--lrat", action=argparse.BooleanOptionalAction,
-    #    default=False)
+    parser.add_argument("--lrat", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument(
         "--shuffle",
         dest="shuffle",
@@ -135,7 +134,7 @@ def validate_config(args):
         # solver_args,
         args.log,
         # args.lrat_top,
-        # args.lrat
+        args.lrat,
         args.iterate_time_cutoff,
         args.iterate_cube_depth,
     )
