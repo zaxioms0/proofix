@@ -1,9 +1,8 @@
 import subprocess
 import time
 import random
-import os
-from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
-
+from concurrent.futures import ThreadPoolExecutor
+from find_vars import find_cube_static
 from args import Config
 from dataclasses import dataclass
 import util
@@ -34,9 +33,9 @@ def add_weighted_occ(occurences, lit, clause_len):
         occurences[key] = OccEntry()
 
     if lit > 0:
-        occurences[key].pos_occs_weighted += 1 / (clause_len ** (3/2))
+        occurences[key].pos_occs_weighted += 1 / (clause_len ** (3 / 2))
     else:
-        occurences[key].neg_occs_weighted += 1 / (clause_len ** (3/2))
+        occurences[key].neg_occs_weighted += 1 / (clause_len ** (3 / 2))
 
 
 def parse_drat_line(line):
@@ -45,7 +44,7 @@ def parse_drat_line(line):
 
     try:
         lits = list(map(lambda x: int(x), line.strip().split(" ")[:-1]))
-    except:
+    except Exception as _:
         print(line)
         exit(1)
     return lits
@@ -54,7 +53,7 @@ def parse_drat_line(line):
 def score(cfg: Config, occs: OccEntry):
     match cfg.score_mode:
         case "sum":
-            return occs.pos_occs + occs.neg_occs
+            return float(occs.pos_occs + occs.neg_occs)
         case "weighted-sum":
             return occs.pos_occs_weighted + occs.neg_occs_weighted
         case _:
@@ -62,76 +61,7 @@ def score(cfg: Config, occs: OccEntry):
             exit(1)
 
 
-def find_cube_static(cfg: Config, start):
-    # list of cubes vs single cube
-    if all(isinstance(x, list) for x in start) and start != []:
-        to_split = start
-    else:
-        to_split = [start]
-    split_lits = set()
-    result = []
-    while to_split != []:
-        # sample num_samples from the current layer
-        if len(to_split) <= cfg.num_samples:
-            samples = to_split
-        else:
-            samples = random.sample(to_split, cfg.num_samples)
-
-        # initialize a bunch of futures
-        max_samples = 2 * cfg.num_samples
-        cur_samples = 0
-        sample_futs = []
-        for sample in samples:
-            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir)
-            sample_fut = util.executor.submit(collect_data, cfg, sample_cnf_loc)
-            sample_futs.append(sample_fut)
-            cur_samples += 1
-
-        # compute futures and score them
-        # if a sample is bad, redo it
-        var_score_dict = {}
-        while sample_futs:
-            done, _ = wait(sample_futs, return_when=FIRST_COMPLETED)
-            for sample in done:
-                var_occ_dict, cnf_loc = sample.result()
-                sample_futs.remove(sample)
-                os.remove(cnf_loc)
-                # if sample is bad and we still have sampling budget
-                if var_occ_dict is None and cur_samples < max_samples:
-                    print("resampling")
-                    new_sample = random.choice(to_split)
-                    new_sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, new_sample, cfg.tmp_dir)
-                    sample_futs.append(util.executor.submit(collect_data, cfg, new_sample_cnf_loc))
-                    cur_samples += 1
-                # good sample
-                elif var_occ_dict is None and cur_samples >= max_samples:
-                    print("hit sampling budget, not resampling")
-                else:
-                    print("good")
-                    for var, occs in var_occ_dict.items():
-                        if var in var_score_dict.keys():
-                            var_score_dict[var] += score(cfg, occs)
-                        else:
-                            var_score_dict[var] = score(cfg, occs)
-
-        for lit in split_lits:
-            var_score_dict.pop(lit, None)
-        print(sorted(var_score_dict.items(), key=lambda item: item[1], reverse=True)[:10])
-        split_lit = max(var_score_dict, key=var_score_dict.get)  # type: ignore
-        split_lits.add(split_lit)
-        new_to_split = []
-        for cube in to_split:
-            if len(cube) + 1 < cfg.cube_size:
-                new_to_split.append(cube + [split_lit])
-                new_to_split.append(cube + [-split_lit])
-            else:
-                result.append(cube + [split_lit])
-                result.append(cube + [-split_lit])
-        to_split = new_to_split
-    return result
-
-
-def collect_data(cfg: Config, cnf_loc):
+def collect_data(cfg: Config, cnf_loc: str) -> tuple[dict[int, OccEntry] | None, str]:
     occurences: dict[int, OccEntry] = {}
     command = [
         "cadical",
@@ -168,7 +98,7 @@ def collect_data(cfg: Config, cnf_loc):
 def run(cfg: Config):
     util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
-    cubes = find_cube_static(cfg, [])
+    cubes = find_cube_static(cfg, collect_data, score, [])
     if cfg.shuffle:
         random.shuffle(cubes)
     with open(cfg.log_file, "a") as f:
@@ -179,11 +109,13 @@ def run(cfg: Config):
         util.executor = ThreadPoolExecutor(max_workers=cfg.solve_procs)
         # iterate_time_cutoff is either int or none, so if its not set this will
         # behave as normal
-        timeout_cubes = util.run_hypercube(cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff)
+        timeout_cubes = util.run_hypercube(
+            cfg.cnf, cubes, cfg.log_file, cfg.tmp_dir, cfg.iterate_time_cutoff
+        )
         if cfg.iterate_time_cutoff:
             while len(timeout_cubes) != 0:
                 cfg.cube_size += cfg.iterate_cube_depth
-                new_cubes = find_cube_static(cfg, timeout_cubes)
+                new_cubes = find_cube_static(cfg, collect_data, score, timeout_cubes)
                 if cfg.shuffle:
                     random.shuffle(new_cubes)
                 timeout_cubes = util.run_hypercube(
