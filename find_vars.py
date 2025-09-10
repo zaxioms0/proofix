@@ -1,16 +1,14 @@
 import random
 import os
 from concurrent.futures import wait, FIRST_COMPLETED
-from typing import Callable, TypeVar, Tuple
+from collections.abc import Callable
 from args import Config
 import util
 
-T = TypeVar("T")
 
-
-def find_cube_static(
+def find_cube_static[T](
     cfg: Config,
-    collect_data: Callable[[Config, str], Tuple[dict[int, T] | None, str]],
+    collect_data: Callable[[Config, str], tuple[dict[int, T] | None, str]],
     score: Callable[[Config, T], float],
     start: list,
 ) -> list[list[int]]:

@@ -1,8 +1,8 @@
 import subprocess
 from collections import Counter
 import random
-import os
 import time
+from find_vars import find_cube_static
 from concurrent.futures import ThreadPoolExecutor
 
 from args import Config
@@ -54,56 +54,17 @@ def parse_lrat_line(line):
             i = int(i)
             if i == 0:
                 swap = True
-            elif swap == False:
+            elif not swap:
                 lits.append(i)
             else:
                 clauses.append(i)
         return (id, lits, clauses)
-    except:
+    except Exception as _:
         return None
 
 
 def score(cfg: Config, occs: OccEntry):
     return occs.pos_occs + occs.neg_occs
-
-
-def find_cube_static(cfg: Config, starting_cube):
-    to_split = [starting_cube]
-    result = []
-    while to_split != []:
-        # sample num_samples from the current layer
-        if len(to_split) <= cfg.num_samples:
-            samples = to_split
-        else:
-            samples = random.sample(to_split, cfg.num_samples)
-        procs = []
-        for sample in samples:
-            sample_cnf_loc = util.add_cube_to_cnf(cfg.cnf, sample, cfg.tmp_dir)
-            proc = util.executor.submit(collect_data, cfg, sample_cnf_loc)
-            procs.append((proc, sample_cnf_loc))
-
-        combined_dict = {}
-        for proc, sample_cnf_loc in procs:
-            proc_dict = proc.result()
-            os.remove(sample_cnf_loc)
-            for var, occs in proc_dict.items():
-                if var not in combined_dict:
-                    combined_dict[var] = score(cfg, occs)
-                else:
-                    combined_dict[var] += score(cfg, occs)
-
-        print(sorted(combined_dict.items(), key=lambda item: item[1], reverse=True)[:10])
-        split_lit = max(combined_dict, key=combined_dict.get)  # type: ignore
-        new_to_split = []
-        for cube in to_split:
-            if len(cube) + 1 < cfg.cube_size:
-                new_to_split.append(cube + [split_lit])
-                new_to_split.append(cube + [-split_lit])
-            else:
-                result.append(cube + [split_lit])
-                result.append(cube + [-split_lit])
-        to_split = new_to_split
-    return result
 
 
 def collect_data(cfg: Config, cnf_loc):
@@ -149,13 +110,13 @@ def collect_data(cfg: Config, cnf_loc):
             process.kill()
             break
     process.wait()
-    return occurences
+    return occurences, cnf_loc
 
 
 def run(cfg: Config):
     util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
-    cubes = find_cube_static(cfg, [])
+    cubes = find_cube_static(cfg, collect_data, score, [])
     if cfg.shuffle:
         random.shuffle(cubes)
     with open(cfg.log_file, "a") as f:
@@ -172,7 +133,7 @@ def run(cfg: Config):
         if cfg.iterate_time_cutoff:
             while len(timeout_cubes) != 0:
                 cfg.cube_size += cfg.iterate_cube_depth
-                new_cubes = find_cube_static(cfg, timeout_cubes)
+                new_cubes = find_cube_static(cfg, collect_data, score, timeout_cubes)
                 if cfg.shuffle:
                     random.shuffle(new_cubes)
                 timeout_cubes = util.run_hypercube(

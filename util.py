@@ -2,12 +2,10 @@ from dataclasses import dataclass
 import time
 import os
 import subprocess
-import random
-import string
 from itertools import product
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
-executor: ProcessPoolExecutor
+executor: ThreadPoolExecutor
 
 
 @dataclass
@@ -135,7 +133,7 @@ def partition_n_ways(numbers, n):
     }
 
 
-def run_hypercube(cnf_loc, hc, log_file_loc, tmp="tmp", timeout: int | None =None):
+def run_hypercube(cnf_loc, hc, log_file_loc, tmp="tmp", timeout: int | None = None):
     log_file = open(log_file_loc, "a")
     timeout_cubes = []
     futures = []
@@ -145,7 +143,7 @@ def run_hypercube(cnf_loc, hc, log_file_loc, tmp="tmp", timeout: int | None =Non
     times = []
     for future, cube in futures:
         output = future.result()
-        if output == None:
+        if output is None:
             log_file.write("c " + ",".join(list(map(str, cube))) + " timeout\n")
             timeout_cubes.append(cube)
         else:
@@ -209,7 +207,7 @@ def run_hypercube(cnf_loc, hc, log_file_loc, tmp="tmp", timeout: int | None =Non
 
 
 def make_icnf(cubes, icnf_loc, orig_cnf=None):
-    if orig_cnf != None:
+    if orig_cnf is not None:
         with open(orig_cnf, "r") as fin, open(icnf_loc, "w") as fout:
             next(fin)
             fout.write("p inccnf\n")

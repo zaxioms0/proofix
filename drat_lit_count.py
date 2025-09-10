@@ -50,10 +50,10 @@ def parse_drat_line(line):
     return lits
 
 
-def score(cfg: Config, occs: OccEntry):
+def score(cfg: Config, occs: OccEntry) -> float:
     match cfg.score_mode:
         case "sum":
-            return float(occs.pos_occs + occs.neg_occs)
+            return occs.pos_occs + occs.neg_occs
         case "weighted-sum":
             return occs.pos_occs_weighted + occs.neg_occs_weighted
         case _:
