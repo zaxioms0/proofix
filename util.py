@@ -2,12 +2,10 @@ from dataclasses import dataclass
 import time
 import os
 import subprocess
-import random
-import string
 from itertools import product
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
-executor: ProcessPoolExecutor
+executor: ThreadPoolExecutor
 
 
 @dataclass
@@ -25,23 +23,23 @@ class CnfHeader:
 
 
 # no timeout by default
-def run_cadical(cnf_loc: str, timeout: float = -1):
+def run_cadical(cnf_loc: str, timeout=None):
     try:
-        if timeout > 0:
+        if timeout:
             p = subprocess.run(
                 ["cadical", cnf_loc], stdout=subprocess.PIPE, timeout=timeout
             )
         else:
             p = subprocess.run(["cadical", cnf_loc], stdout=subprocess.PIPE)
     except subprocess.TimeoutExpired:
-        p = "FAILURE"
+        return None
 
-    return p
+    return p.stdout.decode("utf-8")
 
 
-def run_cadical_cube(base_cnf_loc, cube, tmp="tmp", tag=None):
-    new_cnf_loc = add_cube_to_cnf(base_cnf_loc, cube, tmp, tag)
-    p = run_cadical(new_cnf_loc)
+def run_cadical_cube(base_cnf_loc, cube, tmp="tmp", timeout=None):
+    new_cnf_loc = add_cube_to_cnf(base_cnf_loc, cube, tmp)
+    p = run_cadical(new_cnf_loc, timeout)
     os.remove(new_cnf_loc)
     return p
 
@@ -79,12 +77,9 @@ def cnf_parse_header(cnf_string: str):
     return CnfHeader(int(header[2]), int(header[3]))
 
 
-def add_cube_to_cnf(cnf_loc: str, cube: list[int], tmp_dir, tag=None):
+def add_cube_to_cnf(cnf_loc: str, cube: list[int], tmp_dir):
     cnf_string = open(cnf_loc, "r").read()
-    if tag == None:
-        tag = str(time.time())
-    else:
-        tag = str(tag)
+    tag = str(time.time())
 
     header = cnf_parse_header(cnf_string)
     new_num_clauses = header.clause_num + len(cube)
@@ -138,66 +133,87 @@ def partition_n_ways(numbers, n):
     }
 
 
-def run_hypercube(cnf_loc, hc, log_file_loc, tmp="tmp"):
+def run_hypercube(cnf_loc, hc, log_file_loc, tmp="tmp", timeout: int | None = None):
     log_file = open(log_file_loc, "a")
-    procs = []
+    timeout_cubes = []
+    futures = []
     for _, cube in enumerate(hc):
-        proc = executor.submit(run_cadical_cube, cnf_loc, cube, tmp)
-        procs.append((proc, cube))
+        future = executor.submit(run_cadical_cube, cnf_loc, cube, tmp, timeout)
+        futures.append((future, cube))
     times = []
-    for proc, cube in procs:
-        output = str(proc.result().stdout.decode("utf-8").strip())
-        cadical_result = cadical_parse_results(output)
+    for future, cube in futures:
+        output = future.result()
+        if output is None:
+            log_file.write("c " + ",".join(list(map(str, cube))) + " timeout\n")
+            timeout_cubes.append(cube)
+        else:
+            cadical_result = cadical_parse_results(output)
+
+            log_file.write(
+                "c "
+                + ",".join(list(map(str, cube)))
+                + " time: {}, learned: {}, props: {}, sat: {}\n".format(
+                    cadical_result.time,
+                    cadical_result.learned,
+                    cadical_result.props,
+                    cadical_result.sat,
+                )
+            )
+            log_file.flush()
+            times.append(cadical_result.time)
+    if len(times) == 0:
+        log_file.write("c No cubes finished :( within the time limit\n")
+    else:
+        log_file.write("c solving stats\n")
+        log_file.write("c sum time: {:.2f}\n".format(sum(times)))
+        log_file.write("c max time: {:.2f}\n".format(max(times)))
+        log_file.write("c avg time: {:.2f}\n".format(sum(times) / len(times)))
 
         log_file.write(
-            ",".join(list(map(str, cube)))
-            + " time: {}, learned: {}, props: {}, sat: {}\n".format(
-                cadical_result.time, cadical_result.learned, cadical_result.props, cadical_result.sat
+            "c approx optimal scheduling on 4 cores: {:.2f}\n".format(
+                partition_n_ways(times, 4)["max_time"]
             )
         )
-        log_file.flush()
-        times.append(cadical_result.time)
-    log_file.write("c solving stats\n")
-    log_file.write("c sum time: {:.2f}\n".format(sum(times)))
-    log_file.write("c max time: {:.2f}\n".format(max(times)))
-    log_file.write("c avg time: {:.2f}\n".format(sum(times) / len(times)))
-
-    log_file.write(
-        "c approx optimal scheduling on 4 cores: {:.2f}\n".format(
-            partition_n_ways(times, 4)["max_time"]
+        log_file.write(
+            "c approx optimal scheduling on 8 cores: {:.2f}\n".format(
+                partition_n_ways(times, 8)["max_time"]
+            )
         )
-    )
-    log_file.write(
-        "c approx optimal scheduling on 8 cores: {:.2f}\n".format(
-            partition_n_ways(times, 8)["max_time"]
+        log_file.write(
+            "c approx optimal scheduling on 16 cores: {:.2f}\n".format(
+                partition_n_ways(times, 16)["max_time"]
+            )
         )
-    )
-    log_file.write(
-        "c approx optimal scheduling on 16 cores: {:.2f}\n".format(
-            partition_n_ways(times, 16)["max_time"]
+        log_file.write(
+            "c approx optimal scheduling on 32 cores: {:.2f}\n".format(
+                partition_n_ways(times, 32)["max_time"]
+            )
         )
-    )
-    log_file.write(
-        "c approx optimal scheduling on 32 cores: {:.2f}\n".format(
-            partition_n_ways(times, 32)["max_time"]
+        log_file.write(
+            "c approx optimal scheduling on 64 cores: {:.2f}\n".format(
+                partition_n_ways(times, 64)["max_time"]
+            )
         )
-    )
-    log_file.write(
-        "c approx optimal scheduling on 64 cores: {:.2f}\n".format(
-            partition_n_ways(times, 64)["max_time"]
+        log_file.write(
+            "c approx optimal scheduling on 128 cores: {:.2f}\n".format(
+                partition_n_ways(times, 128)["max_time"]
+            )
         )
-    )
-    log_file.write(
-        "c approx optimal scheduling on 128 cores: {:.2f}\n".format(
-            partition_n_ways(times, 128)["max_time"]
-        )
-    )
+    if len(timeout_cubes) > 0:
+        log_file.write(f"c timeouts: {len(timeout_cubes)}\n")
     log_file.flush()
     log_file.close()
+    return timeout_cubes
 
 
-def make_icnf(cubes, icnf_loc):
-    icnf_file = open(icnf_loc, "a")
+def make_icnf(cubes, icnf_loc, orig_cnf=None):
+    if orig_cnf is not None:
+        with open(orig_cnf, "r") as fin, open(icnf_loc, "w") as fout:
+            next(fin)
+            fout.write("p inccnf\n")
+            for line in fin:
+                fout.write(line)
+    icnf_file = open(icnf_loc, "a" if orig_cnf else "w")
     for cube in cubes:
         icnf_file.write("a " + " ".join(map(str, cube)) + " 0\n")
     icnf_file.close()
