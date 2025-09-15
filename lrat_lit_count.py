@@ -58,16 +58,17 @@ def parse_lrat_line(line):
                 lits.append(i)
             else:
                 clauses.append(i)
+        assert all(map(lambda x: x > 0, clauses))
         return (id, lits, clauses)
     except Exception as _:
         return None
 
 
-def score(cfg: Config, occs: OccEntry):
-    return occs.pos_occs + occs.neg_occs
+def score(cfg: Config, x):
+    return x
 
 
-def collect_data(cfg: Config, cnf_loc):
+def collect_data_cone(cfg: Config, cnf_loc):
     clause_occs = Counter()
     clauses = {}
     occurences = {}
@@ -113,10 +114,61 @@ def collect_data(cfg: Config, cnf_loc):
     return occurences, cnf_loc
 
 
+def collect_data_resolution(cfg: Config, cnf_loc):
+    clauses = {}
+    f = open(cnf_loc, "r")
+    for i, line in enumerate(f.readlines()):
+        if "cnf" in line:
+            continue
+        lits = list(map(int, line.split(" ")[:-1]))
+        clauses[i] = lits
+
+    command = [
+        "cadical",
+        cnf_loc,
+        "-q",
+        "--lrat",
+        "--binary=false",
+        "-",
+    ]
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+
+    if process.stdout is None:
+        print("Failed to spawn command properly")
+        exit(1)
+
+    line_ctr = 0
+    res_occs: Counter[int] = Counter()
+    while True:
+        line = process.stdout.readline()
+        line = line.decode("utf-8")
+        if (parsed_lrat_line := parse_lrat_line(line)) is not None:
+            id, lits, hint_clauses = parsed_lrat_line
+        else:
+            continue
+        line_ctr += 1
+        clauses[id] = lits
+
+        s = set()
+        for clause_id in hint_clauses[::-1]:
+            for lit in clauses[clause_id]:
+                if -lit in s:
+                    res_occs.update([abs(lit)])
+                    s.remove(-lit)
+                else:
+                    s.add(lit)
+        if line_ctr == cfg.cutoff:
+            process.kill()
+            break
+        assert s == set(lits)
+    process.wait()
+    return res_occs, cnf_loc
+
+
 def run(cfg: Config):
     util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
-    cubes = find_cube_static(cfg, collect_data, score, [])
+    cubes = find_cube_static(cfg, collect_data_resolution, score, [])
     if cfg.shuffle:
         random.shuffle(cubes)
     with open(cfg.log_file, "a") as f:
@@ -133,7 +185,9 @@ def run(cfg: Config):
         if cfg.iterate_time_cutoff:
             while len(timeout_cubes) != 0:
                 cfg.cube_size += cfg.iterate_cube_depth
-                new_cubes = find_cube_static(cfg, collect_data, score, timeout_cubes)
+                new_cubes = find_cube_static(
+                    cfg, collect_data_cone, score, timeout_cubes
+                )
                 if cfg.shuffle:
                     random.shuffle(new_cubes)
                 timeout_cubes = util.run_hypercube(
