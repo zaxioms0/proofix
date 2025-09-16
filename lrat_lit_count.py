@@ -142,8 +142,7 @@ def collect_data_resolution(cfg: Config, cnf_loc):
 
     line_ctr = 0
     res_occs: Counter[int] = Counter()
-    while True:
-        line = process.stdout.readline()
+    for line in process.stdout:
         line = line.decode("utf-8")
         if (parsed_lrat_line := parse_lrat_line(line)) is not None:
             id, lits, hint_clauses = parsed_lrat_line
