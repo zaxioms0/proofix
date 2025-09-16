@@ -3,9 +3,9 @@ import time
 import os
 import subprocess
 from itertools import product
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
-executor: ThreadPoolExecutor
+executor: ProcessPoolExecutor
 
 
 @dataclass

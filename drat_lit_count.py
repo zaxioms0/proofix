@@ -1,7 +1,7 @@
 import subprocess
 import time
 import random
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from find_vars import find_cube_static
 from args import Config
 from dataclasses import dataclass
@@ -96,7 +96,7 @@ def collect_data(cfg: Config, cnf_loc: str) -> tuple[dict[int, OccEntry] | None,
 
 
 def run(cfg: Config):
-    util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
+    util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
     cubes = find_cube_static(cfg, collect_data, score, [])
     if cfg.shuffle:
@@ -106,7 +106,7 @@ def run(cfg: Config):
     if cfg.icnf is not None:
         util.make_icnf(cubes, cfg.icnf, cfg.cnf if cfg.include_cnf else None)
     if cfg.conquer:
-        util.executor = ThreadPoolExecutor(max_workers=cfg.solve_procs)
+        util.executor = ProcessPoolExecutor(max_workers=cfg.solve_procs)
         # iterate_time_cutoff is either int or none, so if its not set this will
         # behave as normal
         timeout_cubes = util.run_hypercube(
