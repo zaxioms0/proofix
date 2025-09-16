@@ -40,6 +40,7 @@ def find_cube_static[T](
         # if a sample is bad, redo it
         var_score_dict = {}
         while sample_futs:
+            print(sample_futs)
             done, _ = wait(sample_futs, return_when=FIRST_COMPLETED)
             for sample in done:
                 var_occ_dict, cnf_loc = sample.result()

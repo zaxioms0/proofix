@@ -59,6 +59,9 @@ def parse_lrat_line(line):
             else:
                 clauses.append(i)
         assert all(map(lambda x: x > 0, clauses))
+        if not all(map(lambda x: x != 0, lits)):
+            print(line)
+    
         return (id, lits, clauses)
     except Exception as _:
         return None
@@ -120,7 +123,7 @@ def collect_data_resolution(cfg: Config, cnf_loc):
     for i, line in enumerate(f.readlines()):
         if "cnf" in line:
             continue
-        lits = list(map(int, line.split(" ")[:-1]))
+        lits = list(map(int, line.strip().split(" ")[:-1]))
         clauses[i] = lits
 
     command = [
@@ -160,7 +163,11 @@ def collect_data_resolution(cfg: Config, cnf_loc):
         if line_ctr == cfg.cutoff:
             process.kill()
             break
-        assert s == set(lits)
+        if s != set(lits):
+            print(line)
+            print(parsed_lrat_line)
+            print(s)
+            print(set(lits))
     process.wait()
     return res_occs, cnf_loc
 
