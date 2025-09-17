@@ -1,11 +1,14 @@
 from dataclasses import dataclass
-import time
 import os
 import subprocess
 from itertools import product
+import string
 from concurrent.futures import ProcessPoolExecutor
+from random import Random
 
-executor: ProcessPoolExecutor
+executor = ProcessPoolExecutor(max_workers=1)
+random_unseed = Random()
+random_seed = Random()
 
 
 @dataclass
@@ -79,7 +82,7 @@ def cnf_parse_header(cnf_string: str):
 
 def add_cube_to_cnf(cnf_loc: str, cube: list[int], tmp_dir):
     cnf_string = open(cnf_loc, "r").read()
-    tag = str(time.time())
+    tag = "".join(random_unseed.choices(string.ascii_letters, k=20))
 
     header = cnf_parse_header(cnf_string)
     new_num_clauses = header.clause_num + len(cube)

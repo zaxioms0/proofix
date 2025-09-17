@@ -100,7 +100,7 @@ def run(cfg: Config):
     cube_start = time.time()
     cubes = find_cube_static(cfg, collect_data, score, [])
     if cfg.shuffle:
-        random.shuffle(cubes)
+        util.random_seed.shuffle(cubes)
     with open(cfg.log_file, "a") as f:
         f.write("wall clock cube time: {}\n".format(int(time.time() - cube_start)))
     if cfg.icnf is not None:
@@ -117,7 +117,7 @@ def run(cfg: Config):
                 cfg.cube_size += cfg.iterate_cube_depth
                 new_cubes = find_cube_static(cfg, collect_data, score, timeout_cubes)
                 if cfg.shuffle:
-                    random.shuffle(new_cubes)
+                    util.random_seed.shuffle(new_cubes)
                 timeout_cubes = util.run_hypercube(
                     cfg.cnf,
                     new_cubes,

@@ -1,4 +1,3 @@
-import random
 import os
 from concurrent.futures import wait, FIRST_COMPLETED
 from collections.abc import Callable
@@ -24,7 +23,7 @@ def find_cube_static[T](
         if len(to_split) <= cfg.num_samples:
             samples = to_split
         else:
-            samples = random.sample(to_split, cfg.num_samples)
+            samples = util.random_seed.sample(to_split, cfg.num_samples)
 
         # initialize a bunch of futures
         max_samples = 2 * cfg.num_samples
@@ -49,7 +48,7 @@ def find_cube_static[T](
                 # if sample is bad and we still have sampling budget
                 if var_occ_dict is None and cur_samples < max_samples:
                     print("resampling")
-                    new_sample = random.choice(to_split)
+                    new_sample = util.random_seed.choice(to_split)
                     new_sample_cnf_loc = util.add_cube_to_cnf(
                         cfg.cnf, new_sample, cfg.tmp_dir
                     )

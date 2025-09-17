@@ -1,6 +1,5 @@
 import subprocess
 from collections import Counter
-import random
 import time
 from find_vars import find_cube_static
 from concurrent.futures import ProcessPoolExecutor
@@ -176,7 +175,7 @@ def run(cfg: Config):
     cube_start = time.time()
     cubes = find_cube_static(cfg, collect_data_resolution, score, [])
     if cfg.shuffle:
-        random.shuffle(cubes)
+        util.random_seed.shuffle(cubes)
     with open(cfg.log_file, "a") as f:
         f.write("wall clock cube time: {}\n".format(int(time.time() - cube_start)))
     if cfg.icnf is not None:
@@ -195,7 +194,7 @@ def run(cfg: Config):
                     cfg, collect_data_cone, score, timeout_cubes
                 )
                 if cfg.shuffle:
-                    random.shuffle(new_cubes)
+                    util.random_seed.shuffle(new_cubes)
                 timeout_cubes = util.run_hypercube(
                     cfg.cnf,
                     new_cubes,
