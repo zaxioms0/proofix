@@ -39,7 +39,6 @@ def find_cube_static[T](
         # if a sample is bad, redo it
         var_score_dict = {}
         while sample_futs:
-            print(sample_futs)
             done, _ = wait(sample_futs, return_when=FIRST_COMPLETED)
             for sample in done:
                 var_occ_dict, cnf_loc = sample.result()
@@ -47,7 +46,6 @@ def find_cube_static[T](
                 os.remove(cnf_loc)
                 # if sample is bad and we still have sampling budget
                 if var_occ_dict is None and cur_samples < max_samples:
-                    print("resampling")
                     new_sample = util.random_seed.choice(to_split)
                     new_sample_cnf_loc = util.add_cube_to_cnf(
                         cfg.cnf, new_sample, cfg.tmp_dir
@@ -58,9 +56,8 @@ def find_cube_static[T](
                     cur_samples += 1
                 # good sample
                 elif var_occ_dict is None and cur_samples >= max_samples:
-                    print("hit sampling budget, not resampling")
+                    pass
                 else:
-                    print("good")
                     for var, occs in var_occ_dict.items():
                         if var in var_score_dict.keys():
                             var_score_dict[var] += score(cfg, occs)
@@ -69,9 +66,9 @@ def find_cube_static[T](
 
         for lit in split_lits:
             var_score_dict.pop(lit, None)
-        print(
-            sorted(var_score_dict.items(), key=lambda item: item[1], reverse=True)[:10]
-        )
+        # print(
+        #     sorted(var_score_dict.items(), key=lambda item: item[1], reverse=True)[:10]
+        # )
         split_lit = max(var_score_dict, key=var_score_dict.get)  # type: ignore
         split_lits.add(split_lit)
         new_to_split = []

@@ -3,10 +3,10 @@ import os
 import subprocess
 from itertools import product
 import string
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from random import Random
 
-executor = ProcessPoolExecutor(max_workers=1)
+executor = ThreadPoolExecutor(max_workers=1)
 random_unseed = Random()
 random_seed = Random()
 
