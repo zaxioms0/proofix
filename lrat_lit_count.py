@@ -175,6 +175,7 @@ def collect_data_resolution(cfg: Config, cnf_loc):
         "--binary=false",
         "-",
     ]
+    t = time.time()
     process = subprocess.Popen(command, stdout=subprocess.PIPE)
 
     if process.stdout is None:
@@ -194,7 +195,7 @@ def collect_data_resolution(cfg: Config, cnf_loc):
 
         s = set()
         if len(lits) == 0:
-            print(line)
+            # print(line)
             break
 
         for clause_id in hint_clauses[::-1]:
@@ -217,6 +218,8 @@ def collect_data_resolution(cfg: Config, cnf_loc):
             print(s)
             print(set(lits))
     process.wait()
+    if time.time() - t < 0.5:
+        return None, cnf_loc
     return res_occs, cnf_loc
 
 
