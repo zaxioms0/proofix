@@ -8,7 +8,7 @@ import util
 def find_cube_static[T](
     cfg: Config,
     collect_data: Callable[[Config, str], tuple[dict[int, T] | None, str]],
-    score: Callable[[Config, T], float],
+    process_data: Callable[[Config, T], float],
     start: list,
 ) -> list[list[int]]:
     # list of cubes vs single cube
@@ -41,11 +41,11 @@ def find_cube_static[T](
         while sample_futs:
             done, _ = wait(sample_futs, return_when=FIRST_COMPLETED)
             for sample in done:
-                var_occ_dict, cnf_loc = sample.result()
+                var_data, cnf_loc = sample.result()
                 sample_futs.remove(sample)
                 os.remove(cnf_loc)
                 # if sample is bad and we still have sampling budget
-                if var_occ_dict is None and cur_samples < max_samples:
+                if var_data is None and cur_samples < max_samples:
                     new_sample = util.random_seed.choice(to_split)
                     new_sample_cnf_loc = util.add_cube_to_cnf(
                         cfg.cnf, new_sample, cfg.tmp_dir
@@ -55,14 +55,14 @@ def find_cube_static[T](
                     )
                     cur_samples += 1
                 # good sample
-                elif var_occ_dict is None and cur_samples >= max_samples:
+                elif var_data is None and cur_samples >= max_samples:
                     pass
                 else:
-                    for var, occs in var_occ_dict.items():
+                    for var, data in var_data.items():
                         if var in var_score_dict.keys():
-                            var_score_dict[var] += score(cfg, occs)
+                            var_score_dict[var] += process_data(cfg, data)
                         else:
-                            var_score_dict[var] = score(cfg, occs)
+                            var_score_dict[var] = process_data(cfg, data)
 
         for lit in split_lits:
             var_score_dict.pop(lit, None)

@@ -60,14 +60,10 @@ def parse_lrat_line(line):
         assert all(map(lambda x: x > 0, clauses))
         if not all(map(lambda x: x != 0, lits)):
             print(line)
-    
+
         return (id, lits, clauses)
     except Exception as _:
         return None
-
-
-def score(cfg: Config, x):
-    return x
 
 
 def collect_data_cone(cfg: Config, cnf_loc):
@@ -116,6 +112,30 @@ def collect_data_cone(cfg: Config, cnf_loc):
     return occurences, cnf_loc
 
 
+@dataclass
+class ResEntry:
+    res = 0
+    res_weighted = 0
+
+def add_res(d : dict[int, ResEntry], lit, weight):
+    key = abs(lit)
+    if key not in d:
+        d[key] = ResEntry()
+    d[key].res += 1
+    d[key].res_weighted += 1 * weight
+
+
+def score(cfg: Config, x: ResEntry):
+    match cfg.score_mode:
+        case "sum":
+            return x.res
+        case "weighted-sum":
+            return x.res_weighted
+        case _:
+            print("Unreachable")
+            exit(1)
+
+
 def collect_data_resolution(cfg: Config, cnf_loc):
     clauses = {}
     f = open(cnf_loc, "r")
@@ -140,7 +160,7 @@ def collect_data_resolution(cfg: Config, cnf_loc):
         exit(1)
 
     line_ctr = 0
-    res_occs: Counter[int] = Counter()
+    res_occs: dict[int, ResEntry] = {}
     for line in process.stdout:
         line = line.decode("utf-8")
         if (parsed_lrat_line := parse_lrat_line(line)) is not None:
@@ -154,7 +174,11 @@ def collect_data_resolution(cfg: Config, cnf_loc):
         for clause_id in hint_clauses[::-1]:
             for lit in clauses[clause_id]:
                 if -lit in s:
-                    res_occs.update([abs(lit)])
+                    add_res(res_occs, lit, 1 / (len(lits) ** (3/2)))
+                    # if abs(lit) in res_occs.keys():
+                    #     res_occs[abs(lit)] += 1 / len(lits) ** (3 / 2)
+                    # else:
+                    #     res_occs[abs(lit)] = 1 / len(lits) ** (3 / 2)
                     s.remove(-lit)
                 else:
                     s.add(lit)
