@@ -3,11 +3,10 @@ import os
 import subprocess
 from itertools import product
 import string
-from concurrent.futures import ThreadPoolExecutor
-from random import Random
+from concurrent.futures import ProcessPoolExecutor
+from random import Random, choices
 
-executor = ThreadPoolExecutor(max_workers=1)
-random_unseed = Random()
+executor = ProcessPoolExecutor(max_workers=1)
 random_seed = Random()
 
 
@@ -82,7 +81,7 @@ def cnf_parse_header(cnf_string: str):
 
 def add_cube_to_cnf(cnf_loc: str, cube: list[int], tmp_dir):
     cnf_string = open(cnf_loc, "r").read()
-    tag = "".join(random_unseed.choices(string.ascii_letters, k=20))
+    tag = "".join(choices(string.ascii_letters, k=20))
 
     header = cnf_parse_header(cnf_string)
     new_num_clauses = header.clause_num + len(cube)

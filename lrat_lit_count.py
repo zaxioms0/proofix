@@ -1,8 +1,9 @@
 import subprocess
+import io
 from collections import Counter
 import time
 from find_vars import find_cube_static
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 
 from args import Config
 from dataclasses import dataclass
@@ -92,6 +93,25 @@ def collect_data_cone(cfg: Config, cnf_loc):
         exit(1)
 
     line_ctr = 0
+    # buffer = io.TextIOWrapper(process.stdout, encoding="utf-8", newline="\n")
+    # for block in iter(
+    #     lambda: buffer.readlines(2**16), []
+    # ):  # read ~1024 lines at a time
+    #     for line in block:
+    #         if (parsed_lrat_line := parse_lrat_line(line)) is not None:
+    #             id, lits, hint_clauses = parsed_lrat_line
+    #         else:
+    #             continue
+    #         line_ctr += 1
+    #         clauses[id] = lits
+    #         for clause_id in hint_clauses:
+    #             for lit in clauses[clause_id]:
+    #                 add_occ(occurences, lit)
+    #                 add_weighted_occ(occurences, lit, len(clauses[clause_id]))
+    #         if line_ctr == cfg.cutoff:
+    #             process.kill()
+    #             break
+
     while True:
         line = process.stdout.readline()
         line = line.decode("utf-8")
@@ -109,6 +129,7 @@ def collect_data_cone(cfg: Config, cnf_loc):
             process.kill()
             break
     process.wait()
+
     return occurences, cnf_loc
 
 
@@ -117,7 +138,8 @@ class ResEntry:
     res = 0
     res_weighted = 0
 
-def add_res(d : dict[int, ResEntry], lit, weight):
+
+def add_res(d: dict[int, ResEntry], lit, weight):
     key = abs(lit)
     if key not in d:
         d[key] = ResEntry()
@@ -171,10 +193,14 @@ def collect_data_resolution(cfg: Config, cnf_loc):
         clauses[id] = lits
 
         s = set()
+        if len(lits) == 0:
+            print(line)
+            break
+
         for clause_id in hint_clauses[::-1]:
             for lit in clauses[clause_id]:
                 if -lit in s:
-                    add_res(res_occs, lit, 1 / (len(lits) ** (3/2)))
+                    add_res(res_occs, lit, 1 / (len(lits) ** (3 / 2)))
                     # if abs(lit) in res_occs.keys():
                     #     res_occs[abs(lit)] += 1 / len(lits) ** (3 / 2)
                     # else:
@@ -195,7 +221,7 @@ def collect_data_resolution(cfg: Config, cnf_loc):
 
 
 def run(cfg: Config):
-    util.executor = ThreadPoolExecutor(max_workers=cfg.cube_procs)
+    util.executor = ProcessPoolExecutor(max_workers=cfg.cube_procs)
     cube_start = time.time()
     cubes = find_cube_static(cfg, collect_data_resolution, score, [])
     if cfg.shuffle:
@@ -205,7 +231,7 @@ def run(cfg: Config):
     if cfg.icnf is not None:
         util.make_icnf(cubes, cfg.icnf, cfg.cnf if cfg.include_cnf else None)
     if cfg.conquer:
-        util.executor = ThreadPoolExecutor(max_workers=cfg.solve_procs)
+        util.executor = ProcessPoolExecutor(max_workers=cfg.solve_procs)
         # iterate_time_cutoff is either int or none, so if its not set this will
         # behave as normal
         timeout_cubes = util.run_hypercube(
