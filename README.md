@@ -4,7 +4,7 @@ A tool for partitioning CNF formulas for use via cube and conquer
 ## Usage
 The basic usage is `python --cnf <cnf> --cube-size <n> --cutoff <c> --log <log>`
 
-`python3.7` or greater is required. 
+`python3.13` or greater is required. 
 
 The following are the list of availible command line options:
 ### Required
@@ -15,6 +15,7 @@ The following are the list of availible command line options:
 ### Optional
 - `--num-samples`: How many samples at each layer of the tree (default: 32)
 - `--icnf`: Where to write the icnf file for the cubes (default: None)
+- `--include-cnf`: Whether to include the CNF in the resulting icnf file (default: false)
 - `--tmp-dir`: Where to write all the junk files (default: `tmp`)
 - `--cube-procs`: How many processors to allocate for partitioning (default: n - 2)
 - `--conquer`: Whether to solve the cubes (see `--solve-procs`) (default: False)

@@ -1,6 +1,5 @@
 import subprocess
 import time
-import random
 from concurrent.futures import ThreadPoolExecutor
 from find_vars import find_cube_static
 from args import Config
@@ -33,9 +32,9 @@ def add_weighted_occ(occurences, lit, clause_len):
         occurences[key] = OccEntry()
 
     if lit > 0:
-        occurences[key].pos_occs_weighted += 1 / (clause_len ** (3 / 2))
+        occurences[key].pos_occs_weighted += 1 / (5**clause_len)
     else:
-        occurences[key].neg_occs_weighted += 1 / (clause_len ** (3 / 2))
+        occurences[key].neg_occs_weighted += 1 / (5**clause_len)
 
 
 def parse_drat_line(line):
@@ -89,7 +88,7 @@ def collect_data(cfg: Config, cnf_loc: str) -> tuple[dict[int, OccEntry] | None,
         if line_ctr == cfg.cutoff:
             process.kill()
     process.wait()
-    if time.time() - t < 0.5:
+    if time.time() - t < 5:
         return None, cnf_loc
 
     return occurences, cnf_loc

@@ -18,7 +18,10 @@ def find_cube_static[T](
         to_split = [start]
     split_lits = set()
     result: list[list[int]] = []
+
+    current_depth = 1
     while to_split != []:
+        print(f"current depth: {current_depth}/{cfg.cube_size}")
         # sample num_samples from the current layer
         if len(to_split) <= cfg.num_samples:
             samples = to_split
@@ -80,4 +83,5 @@ def find_cube_static[T](
                 result.append(cube + [split_lit])
                 result.append(cube + [-split_lit])
         to_split = new_to_split
+        current_depth += 1
     return result
