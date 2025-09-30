@@ -2,7 +2,7 @@
 A tool for partitioning CNF formulas for use via cube and conquer
 
 ## Usage
-The basic usage is `python --cnf <cnf> --cube-size <n> --cutoff <c> --log <log>`
+The basic usage is `python proofix.py --cnf <cnf> --cube-size <n> --cutoff <c> --log <log>`
 
 `python3.13` or greater is required. 
 
@@ -17,10 +17,16 @@ The following are the list of availible command line options:
 - `--icnf`: Where to write the icnf file for the cubes (default: None)
 - `--include-cnf`: Whether to include the CNF in the resulting icnf file (default: false)
 - `--tmp-dir`: Where to write all the junk files (default: `tmp`)
-- `--cube-procs`: How many processors to allocate for partitioning (default: n - 2)
+- `--cube-procs`: How many processors to allocate for partitioning (default: num_cpus - 2)
 - `--conquer`: Whether to solve the cubes (see `--solve-procs`) (default: False)
-- `--solve-procs`: How many processors to allocate for solving (default n / 2)
-- `--seed`: Whether to seed the randomness in the sampler
+- `--solve-procs`: How many processors to allocate for solving (default num_cpus / 2)
+- `--seed`: Whether to seed the randomness in the sampler (default: None)
+- `--shuffle`: Whether to shuffle the outputted set of cubes (default: True)
+### Experimental
+- `--lrat`: Whether to use lrat proofs instead of drat proofs (default: False)
+- `--iterate_time_cutoff`: After generating the initial cube, try to conquer it and
+    any cubes that take longer than this time will be resplit (default: None)
+- `--iterate-cube-depth`: How deep should the resplit be before trying to conquer again (default: 4)
 
 This is research quality software. If you have issues using it, please feel free to email me!
 Also, if you have any feature requests or ideas, please reach out or, if you feel inclined, submit a PR!
