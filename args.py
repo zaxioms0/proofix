@@ -25,6 +25,7 @@ class Config:
     lrat: bool
     iterate_time_cutoff: int | None
     iterate_cube_depth: int
+    trivial_time: int
 
 
 def collect_args():
@@ -111,6 +112,13 @@ def collect_args():
         default=4,
         type=int,
     )
+    parser.add_argument(
+        "--trivial-time",
+        dest="trivial_time",
+        required=False,
+        default=0,
+        type=int,
+    )
 
     args, _ = parser.parse_known_args()
     return args
@@ -137,6 +145,7 @@ def validate_config(args):
         args.lrat,
         args.iterate_time_cutoff,
         args.iterate_cube_depth,
+        args.trivial_time
     )
 
     os.makedirs(cfg.tmp_dir, exist_ok=True)

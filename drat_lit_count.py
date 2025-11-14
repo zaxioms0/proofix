@@ -88,9 +88,8 @@ def collect_data(cfg: Config, cnf_loc: str) -> tuple[dict[int, OccEntry] | None,
         if line_ctr == cfg.cutoff:
             process.kill()
     process.wait()
-    if time.time() - t < 5:
+    if time.time() - t < cfg.trivial_time:
         return None, cnf_loc
-
     return occurences, cnf_loc
 
 
