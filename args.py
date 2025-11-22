@@ -26,6 +26,7 @@ class Config:
     iterate_time_cutoff: int | None
     iterate_cube_depth: int
     trivial_time: int
+    disallow_split: list[int]
 
 
 def collect_args():
@@ -119,6 +120,9 @@ def collect_args():
         default=0,
         type=int,
     )
+    parser.add_argument(
+        "--disallow-split", dest="disallow_split", required=False, default=[], type=int
+    )
 
     args, _ = parser.parse_known_args()
     return args
@@ -145,7 +149,8 @@ def validate_config(args):
         args.lrat,
         args.iterate_time_cutoff,
         args.iterate_cube_depth,
-        args.trivial_time
+        args.trivial_time,
+        args.disallow_split
     )
 
     os.makedirs(cfg.tmp_dir, exist_ok=True)
