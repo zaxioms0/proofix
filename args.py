@@ -121,7 +121,7 @@ def collect_args():
         type=int,
     )
     parser.add_argument(
-        "--disallow-split", dest="disallow_split", required=False, default=[], type=int
+            "--disallow-split", dest="disallow_split", nargs="+", required=False, default=[], type=int
     )
 
     args, _ = parser.parse_known_args()
