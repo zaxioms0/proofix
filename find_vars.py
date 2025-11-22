@@ -69,7 +69,6 @@ def find_cube_static[T](
 
         for lit in split_lits:
             var_score_dict.pop(lit, None)
-        print(cfg.disallow_split)
         for lit in cfg.disallow_split:
             var_score_dict.pop(abs(lit), None)
         # print(
